@@ -1,8 +1,8 @@
 from django.db.migrations import operations
 from django.db.migrations.autodetector import MigrationAutodetector
 
+from builtins import super
 from .operations import AlterConstraints
-
 
 class MigrationAutodetectorWithDbConstraints(MigrationAutodetector):
     db_constraints_operations = []
