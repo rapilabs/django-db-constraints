@@ -8,7 +8,7 @@ class MigrationAutodetectorWithDbConstraints(MigrationAutodetector):
     db_constraints_operations = []
 
     def generate_created_models(self, *args, **kwargs):
-        rv = super().generate_created_models(*args, **kwargs)
+        rv = super(MigrationAutodetectorWithDbConstraints, self).generate_created_models(*args, **kwargs)
         for (app_label, migration_operations) in self.generated_operations.items():
             for operation in migration_operations:
                 if isinstance(operation, operations.CreateModel) and 'db_constraints' in operation.options:
@@ -20,7 +20,7 @@ class MigrationAutodetectorWithDbConstraints(MigrationAutodetector):
         return rv
 
     def generate_altered_unique_together(self, *args, **kwargs):
-        rv = super().generate_altered_unique_together(*args, **kwargs)
+        rv = super(MigrationAutodetectorWithDbConstraints, self).generate_altered_unique_together(*args, **kwargs)
 
         for app_label, model_name in sorted(self.kept_model_keys):
             old_model_name = self.renamed_models.get((app_label, model_name), model_name)
@@ -41,7 +41,7 @@ class MigrationAutodetectorWithDbConstraints(MigrationAutodetector):
         return rv
 
     def _sort_migrations(self, *args, **kwargs):
-        rv = super()._sort_migrations()
+        rv = super(MigrationAutodetectorWithDbConstraints, self)._sort_migrations()
         for app_label, operation in self.db_constraints_operations:
             self.generated_operations.setdefault(app_label, []).append(operation)
         return rv
