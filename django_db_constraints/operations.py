@@ -38,19 +38,22 @@ class AlterConstraints(ModelOptionOperation):
                     constraint=to_model._meta.db_constraints[constraint_name],
                 )
                 for constraint_name in to_constraints - from_constraints
-            ) + tuple(
-                'DROP CONSTRAINT IF EXISTS {name}, ADD CONSTRAINT {name} {constraint}'.format(
-                    name=schema_editor.connection.ops.quote_name(constraint_name),
-                    constraint=to_model._meta.db_constraints[constraint_name],
-                )
-                for constraint_name in to_constraints & from_constraints
-                if to_model._meta.db_constraints[constraint_name] != from_model._meta.db_constraints[constraint_name]
             )
-
-            if table_operations:
-                schema_editor.execute('ALTER TABLE {table} {table_operations}'.format(
+            for constraint_name in to_constraints & from_constraints:
+                if to_model._meta.db_constraints[constraint_name] != from_model._meta.db_constraints[constraint_name]:
+                    table_operations += (
+                        'DROP CONSTRAINT IF EXISTS {name}'.format(
+                            name=schema_editor.connection.ops.quote_name(constraint_name)
+                        ),
+                        'ADD CONSTRAINT {name} {constraint}'.format(
+                            name=schema_editor.connection.ops.quote_name(constraint_name),
+                            constraint=to_model._meta.db_constraints[constraint_name],
+                        )
+                    )
+            for table_operation in table_operations:
+                schema_editor.execute('ALTER TABLE {table} {table_operation}'.format(
                     table=schema_editor.connection.ops.quote_name(to_model._meta.db_table),
-                    table_operations=', '.join(table_operations),
+                    table_operation=table_operation,
                 ))
 
     def database_backwards(self, app_label, schema_editor, from_state, to_state):
