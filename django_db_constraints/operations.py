@@ -11,7 +11,7 @@ class AlterConstraints(ModelOptionOperation):
 
     def __init__(self, name, db_constraints):
         self.db_constraints = db_constraints
-        super().__init__(name)
+        super(AlterConstraints, self).__init__(name)
 
     def state_forwards(self, app_label, state):
         model_state = state.models[app_label, self.name_lower]
@@ -24,8 +24,8 @@ class AlterConstraints(ModelOptionOperation):
         if self.allow_migrate_model(schema_editor.connection.alias, to_model):
             from_model = from_state.apps.get_model(app_label, self.name)
 
-            to_constraints = getattr(to_model._meta, self.option_name, {}).keys()
-            from_constraints = getattr(from_model._meta, self.option_name, {}).keys()
+            to_constraints = set(getattr(to_model._meta, self.option_name, {}).keys())
+            from_constraints = set(getattr(from_model._meta, self.option_name, {}).keys())
 
             table_operations = tuple(
                 'DROP CONSTRAINT IF EXISTS {name}'.format(
@@ -38,19 +38,22 @@ class AlterConstraints(ModelOptionOperation):
                     constraint=to_model._meta.db_constraints[constraint_name],
                 )
                 for constraint_name in to_constraints - from_constraints
-            ) + tuple(
-                'DROP CONSTRAINT IF EXISTS {name}, ADD CONSTRAINT {name} {constraint}'.format(
-                    name=schema_editor.connection.ops.quote_name(constraint_name),
-                    constraint=to_model._meta.db_constraints[constraint_name],
-                )
-                for constraint_name in to_constraints & from_constraints
-                if to_model._meta.db_constraints[constraint_name] != from_model._meta.db_constraints[constraint_name]
             )
-
-            if table_operations:
-                schema_editor.execute('ALTER TABLE {table} {table_operations}'.format(
+            for constraint_name in to_constraints & from_constraints:
+                if to_model._meta.db_constraints[constraint_name] != from_model._meta.db_constraints[constraint_name]:
+                    table_operations += (
+                        'DROP CONSTRAINT IF EXISTS {name}'.format(
+                            name=schema_editor.connection.ops.quote_name(constraint_name)
+                        ),
+                        'ADD CONSTRAINT {name} {constraint}'.format(
+                            name=schema_editor.connection.ops.quote_name(constraint_name),
+                            constraint=to_model._meta.db_constraints[constraint_name],
+                        )
+                    )
+            for table_operation in table_operations:
+                schema_editor.execute('ALTER TABLE {table} {table_operation}'.format(
                     table=schema_editor.connection.ops.quote_name(to_model._meta.db_table),
-                    table_operations=', '.join(table_operations),
+                    table_operation=table_operation,
                 ))
 
     def database_backwards(self, app_label, schema_editor, from_state, to_state):
